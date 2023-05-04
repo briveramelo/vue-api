@@ -196,7 +196,7 @@ func (u *User) ResetPassword(password string) error {
 		return err
 	}
 
-	stmt := `update users set password=$1 where id = $2`
+	stmt := `update users set password = $1 where id = $2`
 	_, err = db.ExecContext(ctx, stmt, hashedPassword, u.ID)
 	if err != nil {
 		return err
@@ -229,4 +229,57 @@ type Token struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Expiry    time.Time `json:"expiry"`
+}
+
+func (t *Token) GetByToken(plainText string) (*Token, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	query := `select id, user_id, email, token, token_hash, created_at, updated_at, expiry
+			from tokens where token = $1
+	`
+
+	var token Token
+	row := db.QueryRowContext(ctx, query, plainText)
+
+	err := row.Scan(
+		&token.ID,
+		&token.UserID,
+		&token.Email,
+		&token.Token,
+		&token.TokenHash,
+		&token.CreatedAt,
+		&token.UpdatedAt,
+		&token.Expiry,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
+func (t *Token) GetUserForToken(token Token) (*User, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	query := `select id, email, first_name, last_name, password, created_at, updated_at, from users where id = $1`
+
+	var user User
+	row := db.QueryRowContext(ctx, query, token.UserID)
+
+	err := row.Scan(
+		&user.ID,
+		&user.Email,
+		&user.FirstName,
+		&user.LastName,
+		&user.Password,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }
