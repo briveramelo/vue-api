@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"github.com/jackc/pgconn"
 	"io"
 	"net/http"
 )
@@ -42,7 +43,7 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data interf
 	w.WriteHeader(status)
 	_, err = w.Write(out)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	return nil
@@ -55,9 +56,20 @@ func (app *application) errorJSON(w http.ResponseWriter, err error, status ...in
 		statusCode = status[0]
 	}
 
-	var paylaod jsonResponse
-	paylaod.Error = true
-	paylaod.Message = err.Error()
+	var customErr error
+	cast, ok := err.(*pgconn.PgError)
+	if ok {
+		msg := get_code(cast.Code)
+		customErr = errors.New(msg)
+		statusCode = http.StatusForbidden
+	} else {
+		customErr = err
+	}
 
-	app.writeJSON(w, statusCode, paylaod)
+	var payload jsonResponse
+	payload.Error = true
+	payload.Message = customErr.Error()
+
+	app.errorLog.Println(customErr)
+	app.writeJSON(w, statusCode, payload)
 }

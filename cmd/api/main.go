@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/joho/godotenv"
 	"log"
 	"net/http"
 	"os"
@@ -26,6 +27,7 @@ func main() {
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	errorLog := log.New(os.Stdout, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
+	initEnv(".env")
 	dsn := os.Getenv("DSN")
 	db, err := driver.ConnectPostgres(dsn)
 	if err != nil {
@@ -43,6 +45,14 @@ func main() {
 	err = app.serve()
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func initEnv(filenames ...string) {
+	err := godotenv.Load(filenames...)
+
+	if err != nil {
+		log.Fatal("Error loading .env file")
 	}
 }
 
